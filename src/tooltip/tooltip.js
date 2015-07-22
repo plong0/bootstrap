@@ -118,6 +118,8 @@ angular.module( 'ui.bootstrap.tooltip', [ 'ui.bootstrap.position', 'ui.bootstrap
           return function link ( scope, element, attrs, tooltipCtrl ) {
             var tooltip;
             var tooltipLinkedScope;
+            var tooltipHoverable = angular.isDefined(attrs[prefix+'Hoverable']);
+            var tooltipHovered = false, elementHovered = false;
             var transitionTimeout;
             var popupTimeout;
             var appendToBody = angular.isDefined( options.appendToBody ) ? options.appendToBody : false;
@@ -153,7 +155,7 @@ angular.module( 'ui.bootstrap.tooltip', [ 'ui.bootstrap.position', 'ui.bootstrap
 
             // Show the tooltip with delay if specified, otherwise show it immediately
             function showTooltipBind() {
-              if(hasEnableExp && !scope.$eval(attrs[prefix+'Enable'])) {
+              if(ttScope.isOpen || (hasEnableExp && !scope.$eval(attrs[prefix+'Enable']))) {
                 return;
               }
 
@@ -172,9 +174,22 @@ angular.module( 'ui.bootstrap.tooltip', [ 'ui.bootstrap.position', 'ui.bootstrap
             }
 
             function hideTooltipBind () {
-              scope.$apply(function () {
-                hide();
-              });
+              if(tooltipHoverable && triggers.hide == 'mouseleave'){
+                // if hoverable tooltip is enabled and it is a mouseleave action
+                // allow tiny timeout for mouse to move onto tooltip
+                $timeout(function(){
+                  if(!tooltipHovered && !elementHovered){
+                    scope.$apply(function () {
+                      hide();
+                    });
+                  }
+                }, 50);
+              }
+              else{
+                scope.$apply(function () {
+                  hide();
+                });
+              }
             }
 
             // Show the tooltip popup element.
@@ -245,6 +260,12 @@ angular.module( 'ui.bootstrap.tooltip', [ 'ui.bootstrap.position', 'ui.bootstrap
                   element.after( tooltip );
                 }
               });
+              if(tooltipHoverable && triggers.hide == 'mouseleave'){
+                element.bind('mouseenter', function(){ elementHovered = true; });
+                element.bind('mouseleave', function(){ elementHovered = false; });
+                tooltip.bind('mouseenter', function(){ tooltipHovered = true; });
+                tooltip.bind('mouseleave', function(){ tooltipHovered = false; hideTooltipBind(); });
+              }
 
               tooltipLinkedScope.$watch(function () {
                 $timeout(positionTooltip, 0, false);
